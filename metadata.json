@@ -1,0 +1,5 @@
+{
+  "name": "UI Prompt Generator",
+  "description": "An application to generate detailed UI/UX design prompts for generative AI models using Gemini. Select styles, components, colors, and add a description to craft the perfect prompt.",
+  "requestFramePermissions": []
+}
