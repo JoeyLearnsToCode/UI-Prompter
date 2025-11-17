@@ -59,7 +59,7 @@ const App = () => {
     const [appState, setAppState] = useLocalStorage('promptCraftState', {
         step: 1,
         purpose: null as string | null,
-        style: null as string | null,
+        style: [] as string[],
         primaryColor: '#007AFF',
         components: [] as string[],
         promptFormat: 'markdown'
@@ -89,7 +89,7 @@ const App = () => {
                 showToast('请先选择一个设计目的', 'error');
                 return;
             }
-            if (appState.step === 2 && !appState.style) {
+            if (appState.step === 2 && appState.style.length === 0) {
                 showToast('请先选择一种视觉风格', 'error');
                 return;
             }
@@ -112,7 +112,7 @@ const App = () => {
             setAppState({
                 step: 1,
                 purpose: null,
-                style: null,
+                style: [],
                 primaryColor: '#007AFF',
                 components: [],
                 promptFormat: 'markdown'
@@ -122,21 +122,30 @@ const App = () => {
     };
 
     const showHelp = () => {
-        alert('UI Prompt Generator 帮助\n\n1. 选择目的：确定你要设计的应用类型。\n2. 定义风格：选择喜欢的视觉语言和品牌色。\n3. 配置组件：勾选需要包含的具体功能模块。\n\n完成后，右下角会自动生成结构化的AI提示词，可直接复制用于 Midjourney、Stable Diffusion 或 GPT-4。\n\n💬 AI设计助手：\n与AI实时对话获取设计建议。');
+        alert('UI Prompt Generator 帮助\n\n1. 选择目的：确定你要设计的应用类型。\n2. 定义风格：选择喜欢的视觉语言和品牌色。支持 Ctrl+点击 最多选择两种风格进行融合。\n3. 配置组件：勾选需要包含的具体功能模块。\n\n完成后，右下角会自动生成结构化的AI提示词，可直接复制用于 Midjourney、Stable Diffusion 或 GPT-4。\n\n💬 AI设计助手：\n与AI实时对话获取设计建议。');
     };
     
     // --- Prompt Generation ---
     const generatedPrompt = useMemo(() => {
         const pObj = PURPOSES.find(p => p.id === appState.purpose);
-        const sObj = STYLES.find(s => s.id === appState.style);
+        const sObjs = STYLES.filter(s => appState.style.includes(s.id));
 
-        if (!pObj || !sObj) {
+        if (!pObj || sObjs.length === 0) {
             return "请在左侧完成选择以生成提示词...";
         }
 
         const pName = pObj.title;
-        const sName = sObj.title;
-        const sDesc = sObj.desc;
+        let sName = '';
+        let sDesc = '';
+        
+        if (sObjs.length === 1) {
+            sName = sObjs[0].title;
+            sDesc = sObjs[0].desc;
+        } else if (sObjs.length > 1) {
+            sName = `${sObjs[0].title} 与 ${sObjs[1].title} 的融合风格`;
+            sDesc = `以 ${sObjs[0].title} (${sObjs[0].desc}) 的设计原则为主，并融入 ${sObjs[1].title} (${sObjs[1].desc}) 的特色。`;
+        }
+
 
         let componentListStr = '';
         if (selectedComponents.size > 0) {
@@ -207,6 +216,7 @@ ${componentListStr}
                         appState={appState}
                         updateState={updateState}
                         selectedComponents={selectedComponents}
+                        showToast={showToast}
                     />
                     <PreviewPanel
                         appState={appState}
@@ -262,7 +272,7 @@ const Header = ({ onReset, onHelp, onOpenAiAssistant }: any) => (
     </header>
 );
 
-const WizardPanel = ({ appState, updateState, selectedComponents }: any) => {
+const WizardPanel = ({ appState, updateState, selectedComponents, showToast }: any) => {
     const { step, purpose, style, primaryColor } = appState;
 
     const titles: { [key: number]: string } = {
@@ -285,6 +295,46 @@ const WizardPanel = ({ appState, updateState, selectedComponents }: any) => {
         }
         updateState({ components: Array.from(newComponents) });
     };
+    
+    const handleStyleClick = (s: any, event: React.MouseEvent) => {
+        const currentStyles = appState.style;
+        const styleId = s.id;
+        const isSelected = currentStyles.includes(styleId);
+
+        let newStyles: string[];
+
+        // Universal Deselect: If the clicked item is already selected, deselect it.
+        // This handles "single-click to deselect" and "ctrl-click to deselect" consistently.
+        if (isSelected) {
+            newStyles = currentStyles.filter(id => id !== styleId);
+        } else {
+            // Add a new style
+            if (event.ctrlKey || event.metaKey) { // Multi-select mode
+                if (currentStyles.length < 2) {
+                    newStyles = [...currentStyles, styleId];
+                } else {
+                    showToast('最多只能选择两种风格', 'error');
+                    return; // Don't update state, limit reached
+                }
+            } else { // Single-select mode
+                newStyles = [styleId]; // Replace current selection
+            }
+        }
+
+        let newPrimaryColor = appState.primaryColor;
+        if (newStyles.length > 0) {
+            const firstStyleId = newStyles[0];
+            const firstStyleObj = STYLES.find(st => st.id === firstStyleId);
+            if (firstStyleObj) {
+                newPrimaryColor = firstStyleObj.color;
+            }
+        } else {
+            // Reset to default if all styles are deselected
+            newPrimaryColor = '#007AFF';
+        }
+
+        updateState({ style: newStyles, primaryColor: newPrimaryColor });
+    };
 
     const renderStepContent = () => {
         switch (step) {
@@ -306,7 +356,7 @@ const WizardPanel = ({ appState, updateState, selectedComponents }: any) => {
                     <>
                         <div className="grid-cards">
                             {STYLES.map(s => (
-                                <div key={s.id} className={`selection-card ${style === s.id ? 'selected' : ''}`} onClick={() => updateState({ style: s.id, primaryColor: s.color })}>
+                                <div key={s.id} className={`selection-card ${style.includes(s.id) ? 'selected' : ''}`} onClick={(e) => handleStyleClick(s, e)}>
                                     <div className="check-mark"><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg></div>
                                     <div className="card-icon" style={{ color: s.color }}><div style={{ width: '24px', height: '24px', background: 'currentColor', borderRadius: '50%' }}></div></div>
                                     <h3 className="card-title">{s.title}</h3>
@@ -409,14 +459,14 @@ const ComponentsStep = ({ selectedComponents, onToggle }: any) => {
 const PreviewPanel = ({ appState, generatedPrompt, onCopy, onFormatChange }: any) => {
     const { purpose, style, primaryColor, components } = appState;
     const pObj = PURPOSES.find(p => p.id === purpose);
-    const sObj = STYLES.find(s => s.id === style);
+    const sObjs = STYLES.filter(s => style.includes(s.id));
 
     // FIX: Use a type assertion on the object literal to allow for CSS custom properties,
     // which are not included in React.CSSProperties by default.
     const canvasStyle = {
         '--c-primary': primaryColor,
-        border: style === 'brutalist' ? '3px solid #000' : '1px solid var(--c-border-light)',
-        borderRadius: style === 'brutalist' || style === 'minimal' ? '0' : 'var(--radius-lg)'
+        border: style.includes('brutalist') ? '3px solid #000' : '1px solid var(--c-border-light)',
+        borderRadius: style.includes('brutalist') || style.includes('minimal') ? '0' : 'var(--radius-lg)'
     } as React.CSSProperties;
     
     return (
@@ -433,7 +483,7 @@ const PreviewPanel = ({ appState, generatedPrompt, onCopy, onFormatChange }: any
                 </div>
                 <div id="selection-tags" className="flex flex-wrap gap-2">
                     {pObj && <span className="text-xs font-medium" style={{padding: '4px 10px', background: '#E5F1FF', borderRadius: '20px'}}>{pObj.title}</span>}
-                    {sObj && <span className="text-xs font-medium" style={{padding: '4px 10px', background: 'var(--c-bg-tertiary)', borderRadius: '20px'}}>{sObj.title}</span>}
+                    {sObjs.map(sObj => <span key={sObj.id} className="text-xs font-medium" style={{padding: '4px 10px', background: 'var(--c-bg-tertiary)', borderRadius: '20px'}}>{sObj.title}</span>)}
                     {components.length > 0 && <span className="text-xs font-medium" style={{padding: '4px 10px', background: 'var(--c-bg-tertiary)', borderRadius: '20px'}}>{components.length} 个组件</span>}
                 </div>
             </div>
@@ -492,10 +542,22 @@ const AiAssistantModal = ({ isOpen, onClose, appState, showToast }: any) => {
         setIsLoading(true);
 
         try {
+            const sObjs = STYLES.filter(s => appState.style.includes(s.id));
+            let styleTitle = '未选择';
+            let styleDesc = '无';
+
+            if (sObjs.length === 1) {
+                styleTitle = sObjs[0].title;
+                styleDesc = sObjs[0].desc;
+            } else if (sObjs.length > 1) {
+                styleTitle = `${sObjs[0].title} 与 ${sObjs[1].title} 的融合风格`;
+                styleDesc = `以 ${sObjs[0].title} (${sObjs[0].desc}) 的设计原则为主体，并融入 ${sObjs[1].title} (${sObjs[1].desc}) 的特色。`;
+            }
+
             const context = {
                 purpose: PURPOSES.find(p => p.id === appState.purpose)?.title || '未选择',
-                style: STYLES.find(s => s.id === appState.style)?.title || '未选择',
-                styleDesc: STYLES.find(s => s.id === appState.style)?.desc || '无',
+                style: styleTitle,
+                styleDesc: styleDesc,
                 primaryColor: appState.primaryColor,
                 components: appState.components.join(', ') || '无',
             };
