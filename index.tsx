@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { COMPONENT_DATA, COMPONENT_STATS } from './js/componentData.js';
@@ -18,8 +19,11 @@ const PURPOSES = [
 
 const STYLES = [
     { id: 'apple', title: 'Modern Apple', desc: '极致简约，大量留白，模糊半透明效果，完美的圆角和阴影。', color: '#007AFF' },
-    { id: 'minimal', title: '极致极简', desc: '黑白为主，极少的装饰元素，强调排版和内容本身。', color: '#000000' },
+    { id: 'fluent2', title: 'Fluent 2 Design', desc: '微软最新设计语言，强调光影、材质和动效，通过圆角、阴影和半透明效果营造友好、现代且有深度的界面。', color: '#0078D4' },
+    { id: 'glassmorphism', title: '玻璃拟态 (Glassmorphism)', desc: '通过背景模糊、半透明和细腻边框创造层次感，效果轻盈通透，常见于Apple和微软的设计中。', color: '#14B8A6' },
     { id: 'material', title: 'Material V3', desc: 'Google设计语言，动态色彩，高对比度，卡片式布局。', color: '#6750A4' },
+    { id: 'neumorphism', title: '新拟物主义 (Neumorphism)', desc: '通过柔和的内外阴影，让UI元素仿佛从背景中浮出或凹陷，营造出柔软、简约、一体化的质感。', color: '#E0E5EC' },
+    { id: 'minimal', title: '极致极简', desc: '黑白为主，极少的装饰元素，强调排版和内容本身。', color: '#000000' },
     { id: 'brutalist', title: '新粗野主义', desc: '大胆的边框，高饱和度色彩，复古且不拘一格的排版。', color: '#FF5722' },
     { id: 'corporate', title: '专业商务', desc: '稳重、值得信赖的蓝色系，传统的布局，信息密度较高。', color: '#0A66C2' },
     { id: 'playful', title: '活泼趣味', desc: '圆润的字体，鲜艳的色彩，丰富的微交互和插画元素。', color: '#FFC107' }
